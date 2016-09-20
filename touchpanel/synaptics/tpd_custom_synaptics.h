@@ -41,6 +41,9 @@
 #define TPD_POWER_SOURCE	MT65XX_POWER_LDO_VGP4       
 #define TPD_I2C_BUS		0
 #define TPD_I2C_ADDR		0x20
+#define TPD_I2C_ADDR_4B		0x4B
+#define TPD_I2C_ADDR_70		0x70
+
 #define TPD_WAKEUP_TRIAL	60
 #define TPD_WAKEUP_DELAY	100
 

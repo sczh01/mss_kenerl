@@ -48,9 +48,6 @@
 #ifdef KERNEL_ABOVE_2_6_38
 #define TYPE_B_PROTOCOL
 #endif
-
-#define I2C_ADDR1 0x4b //Joey
-
 //[ gesture 
 #define WAKEUP_GESTURE false
 //]
@@ -65,9 +62,6 @@
 /*
 #define IGNORE_FN_INIT_FAILURE
 */
-
-
-
 
 #define RPT_TYPE (1 << 0)
 #define RPT_X_LSB (1 << 1)
@@ -3295,49 +3289,6 @@ static ssize_t reset_gpio_store(struct device *dev, struct device_attribute *att
     return count; 
 }
 static DEVICE_ATTR(reset_gpio, S_IRUGO | S_IWUGO, reset_gpio_show, reset_gpio_store);
-
-#define MULTI_I2C_ADDR 1
-
-#ifdef MULTI_I2C_ADDR
-
-static unsigned char i2c_addr_list[] = { TPD_I2C_ADDR, TPD_I2C_ADDR_4B,TPD_I2C_ADDR_70 };
-static char i2c_addr_num = 3;
-
-static int synaptics_rmi4_check_i2c_address( struct i2c_client *client, unsigned char *list, char num  )
-{
-	int retval = 0;
-	unsigned char retry, i = 0 ;
-	unsigned char buf[PAGE_SELECT_LEN];
-
-	struct i2c_client *i2c = client;
-
-	buf[0] = MASK_8BIT;
-	buf[1] = 0x01; //just for test
-
-	for(i=0; i< num; i++ ){
-		i2c->addr = list[i];
-		for (retry = 0; retry < SYN_I2C_RETRY_TIMES; retry++)
-		{
-			retval = i2c_master_send(i2c, buf, PAGE_SELECT_LEN);
-			if (retval != PAGE_SELECT_LEN) {
-				dev_err(&i2c->dev,
-						"%s: I2C retry %d\n",
-						__func__, retry + 1);
-				msleep(20);
-			} 
-			else{
-				break;
-			}
-		}
-		if( retval == PAGE_SELECT_LEN ) //find one address
-			break;
-	}
-
-	return (retval == PAGE_SELECT_LEN) ? retval : -EIO;
-}
-
-#endif
-
  /**
  * synaptics_rmi4_probe()
  *
@@ -3426,19 +3377,7 @@ static int synaptics_rmi4_probe(struct i2c_client *client,
 	mutex_init(&(rmi4_data->rmi4_io_ctrl_mutex));
 	mutex_init(&(rmi4_data->rmi4_reset_mutex));
 
-#ifdef MULTI_I2C_ADDR
-
-	retval = synaptics_rmi4_check_i2c_address( client, (char*)i2c_addr_list, sizeof (i2c_addr_list)/ sizeof(char) );
-
-	if (retval < 0) {
-		dev_err(&client->dev,
-				"%s: Failed to check the I2c device by prived address\n",
-				__func__);
-		goto err_set_input_dev;
-	}
-#endif
-
-	i2c_set_clientdata(client, rmi4_data); // copy privte struct to system, we must configthe I2C address in here.
+	i2c_set_clientdata(client, rmi4_data);
 	retval = synaptics_rmi4_set_input_dev(rmi4_data);
 	if (retval < 0) {
 		dev_err(&client->dev,

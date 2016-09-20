@@ -16,6 +16,7 @@ extern LCM_DRIVER ili9881_cpt50_dsi_vdo_lcm_drv;
 extern LCM_DRIVER ili9807_cpt50_dsi_vdo_lcm_drv;
 extern LCM_DRIVER r69006_fhd_dsi_cmd_lcm_drv;
 extern LCM_DRIVER r69338_fhd_dsi_vdo_lcm_drv;
+extern LCM_DRIVER otm1906_fhd_dsi_cmd_lcm_drv;
 //*******************************confirm************************
 
 LCM_DRIVER* lcm_driver_list[] = 
@@ -73,6 +74,9 @@ LCM_DRIVER* lcm_driver_list[] =
 #endif
 #ifdef R69338_FHD_DSI_VDO
 	&r69338_fhd_dsi_vdo_lcm_drv,
+#endif
+#ifdef OTM1906_FHD_DSI_CMD
+	&otm1906_fhd_dsi_cmd_lcm_drv,
 #endif
 //************************confirm ***********************
 
