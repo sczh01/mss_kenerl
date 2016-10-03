@@ -5,6 +5,7 @@
 
 extern LCM_UTIL_FUNCS lcm_util;
 
+struct LCM_cfg          local_cfg;
 #ifndef BUILD_LK
 static char  buf[1]="1";
 static struct task_struct *my_thread=NULL;
@@ -18,7 +19,7 @@ union LCM_code_table    lcm_code_table[MAX_CMD];
 union LCM_code_table    lcm_code_sleep_in_table[LPWG_CMD];
 union LCM_code_table    lcm_code_sleep_out_table[LPWG_CMD];
 
-struct LCM_cfg          lcm_cfg;
+struct LCM_cfg          g_lcm_cfg;
 unsigned char           lcm_cmd_buf[COMMAND_BUF_SIZE];
 
 char *lcm_FileName = "/sdcard/cmd.txt";
@@ -278,94 +279,168 @@ int load_file( char *FileName, unsigned char* buf )
 }
 #endif
 
-#define CTRL_PWR_NUM        6
+//{0xb0,0x00,0x05};    //mipi ESD  176 ???????MIPI? ????mipi
+//{0x4c,0x01,0x05};    //iovcc  76
+//{0x7e,0x01,0x05};    //vcc 126
+//{0xae,0x01,0x05};    //vsp 174
+//{0xb1,0x01,0x05};    //vsn  177
+//{0x83,0x01,0x01};    //reset 131
+//{0xaf,0x01,0x05};     //BL VBAT    ????????? ????
+//{0x81,0x01,0x05};     //BL en       ????????  ??????
+//{0xAD,0x01,0x05};     //OTP 173 
 
-void ctrl_RST( unsigned char ctrl, unsigned char delay )
+
+static unsigned int ctrl_fn_v0[CTRL_PWR_NUM]={0x7E,0x7E,0x7D,0x75,0x83,0x81,0xAE,0,0,0xAE81 };
+static unsigned int ctrl_fn_v1[CTRL_PWR_NUM]={0x4c,0x7e,0xAE,0xB1,0x83,0x81,0xAF,0xAD,0xB0,0xAF81 };
+
+//ctrl_IOVCC,ctrl_VCI,ctrl_VSP,ctrl_VSN,ctrl_RST,ctrl_BL
+void ctrl_GPIO( unsigned char ctrl, unsigned char delay, unsigned int index )
 {
     #if defined(BUILD_LK)
     printf("r69338 %s\n", __func__);
     #else
-    printk("r69338 %s\n", __func__);
+    printk("r69338 %s, index=%x\n", __func__, index);
     #endif
-    mt_set_gpio_mode(131, 0);   //lcm reset control
-    mt_set_gpio_dir(131,1);
-    mt_set_gpio_out(131,ctrl);   
+    mt_set_gpio_mode(index&0xff, 0);   
+    mt_set_gpio_dir(index&0xff,1);
+    mt_set_gpio_out(index&0xff,ctrl);   
+    lcm_util.mdelay(delay*10+5);    
+}
+void ctrl_RST( unsigned char ctrl, unsigned char delay, unsigned int index )
+{
+    #if defined(BUILD_LK)
+    printf("r69338 %s\n", __func__);
+    #else
+    printk("r69338 %s, index=%x\n", __func__, index);
+    #endif
+    mt_set_gpio_mode(index&0xff, 0);   
+    mt_set_gpio_dir(index&0xff,1);
+    mt_set_gpio_out(index&0xff,ctrl);   
+    lcm_util.mdelay(delay*10+5);    
+}
+void ctrl_ESD( unsigned char ctrl, unsigned char delay, unsigned int index )
+{
+    #if defined(BUILD_LK)
+    printf("r69338 %s\n", __func__);
+    #else
+    printk("r69338 %s, index=%x\n", __func__, index);
+    #endif
+    mt_set_gpio_mode(index&0xff, 0);   
+    mt_set_gpio_dir(index&0xff,1);
+    mt_set_gpio_out(index&0xff,ctrl);   
+    lcm_util.mdelay(delay*10+5);    
+}
+void ctrl_OTP_PWR( unsigned char ctrl, unsigned char delay, unsigned int index )
+{
+    #if defined(BUILD_LK)
+    printf("r69338 %s\n", __func__);
+    #else
+    printk("r69338 %s, index=%x\n", __func__, index);
+    #endif
+    mt_set_gpio_mode(index&0xff, 0);   
+    mt_set_gpio_dir(index&0xff,1);
+    mt_set_gpio_out(index&0xff,ctrl);   
+    lcm_util.mdelay(delay*10+5);    
+}
+void ctrl_VSP( unsigned char ctrl, unsigned char delay,unsigned int index )
+{
+    #if defined(BUILD_LK)
+    printf("r69338 %s\n", __func__);
+    #else
+    printk("r69338 %s, index=%x\n", __func__, index);
+    #endif
+	mt_set_gpio_mode(index&0xff,0);   
+	mt_set_gpio_dir(index&0xff,1);
+	mt_set_gpio_out(index&0xff,ctrl); 
+    lcm_util.mdelay(delay*10+5);   
+}
+
+void ctrl_VSN( unsigned char ctrl, unsigned char delay,unsigned int index  )
+{
+    #if defined(BUILD_LK)
+    printf("r69338 %s\n", __func__);
+    #else
+    printk("r69338 %s, index=%x\n", __func__, index);
+    #endif
+	mt_set_gpio_mode(index&0xff,0);   
+	mt_set_gpio_dir(index&0xff,1);
+	mt_set_gpio_out(index&0xff,ctrl);
+    lcm_util.mdelay(delay*10+5);   
+}
+
+void ctrl_BL_BAT( unsigned char ctrl, unsigned char delay, unsigned int index )
+{
+    #if defined(BUILD_LK)
+    printf("r69338 %s\n", __func__);
+    #else
+    printk("r69338 %s, index=%x\n", __func__, index);
+    #endif
+    mt_set_gpio_mode(index&0xff, 0);   //lcm reset control
+    mt_set_gpio_dir(index&0xff,1);
+    mt_set_gpio_out(index&0xff,ctrl);   
     lcm_util.mdelay(delay*10+5);    
 }
 
-void ctrl_VSP( unsigned char ctrl, unsigned char delay )
+void ctrl_BL_EN( unsigned char ctrl, unsigned char delay, unsigned int index )
 {
     #if defined(BUILD_LK)
     printf("r69338 %s\n", __func__);
     #else
-    printk("r69338 %s\n", __func__);
+    printk("r69338 %s, index=%x\n", __func__, index);
     #endif
-	mt_set_gpio_mode(125,0);   //VSP  on
-	mt_set_gpio_dir(125,1);
-	mt_set_gpio_out(125,ctrl); 
-    lcm_util.mdelay(delay*10+5);   
+    mt_set_gpio_mode(index&0xff, 0);   //lcm reset control
+    mt_set_gpio_dir(index&0xff,1);
+    mt_set_gpio_out(index&0xff,ctrl);   
+    lcm_util.mdelay(delay*10+5);    
 }
 
-void ctrl_VSN( unsigned char ctrl, unsigned char delay  )
+void ctrl_BL( unsigned char ctrl, unsigned char delay,unsigned int index  )
 {
     #if defined(BUILD_LK)
     printf("r69338 %s\n", __func__);
     #else
-    printk("r69338 %s\n", __func__);
+    printk("r69338 %s, index=%x\n", __func__, index);
     #endif
-	mt_set_gpio_mode(117,0);   //VSN  on
-	mt_set_gpio_dir(117,1);
-	mt_set_gpio_out(117,ctrl);
-    lcm_util.mdelay(delay*10+5);   
-}
-
-void ctrl_BL( unsigned char ctrl, unsigned char delay  )
-{
-    #if defined(BUILD_LK)
-    printf("r69338 %s\n", __func__);
-    #else
-    printk("r69338 %s\n", __func__);
-    #endif
-	mt_set_gpio_mode(174,0);   //BL power
-	mt_set_gpio_dir(174,1);
-	mt_set_gpio_out(174,ctrl);   
-    lcm_util.mdelay(5);
-	mt_set_gpio_mode(129,0);   //BL enable
-	mt_set_gpio_dir(129,1);
-	mt_set_gpio_out(129,ctrl); 
+	mt_set_gpio_mode(index&0xff,0);   
+	mt_set_gpio_dir(index&0xff,1);
+	mt_set_gpio_out(index&0xff,ctrl);   
+    lcm_util.mdelay(25);
+	mt_set_gpio_mode((index>>8)&0xff,0);   
+	mt_set_gpio_dir((index>>8)&0xff,1);
+	mt_set_gpio_out((index>>8)&0xff,ctrl); 
     lcm_util.mdelay(delay*10+5);
 }
 
 
 
-void ctrl_IOVCC( unsigned char ctrl, unsigned char delay  )
+void ctrl_IOVCC( unsigned char ctrl, unsigned char delay,unsigned int index  )
 {
     #if defined(BUILD_LK)
     printf("r69338 %s\n", __func__);
     #else
-    printk("r69338 %s\n", __func__);
+    printk("r69338 %s, index=%x\n", __func__, index);
     #endif
-	mt_set_gpio_mode(126,0);   //vci +iovcc on
-	mt_set_gpio_dir(126,1);
-	mt_set_gpio_out(126,ctrl);   //
+    mt_set_gpio_mode(index&0xff, 0);   //lcm reset control
+    mt_set_gpio_dir(index&0xff,1);
+    mt_set_gpio_out(index&0xff,ctrl);   
     lcm_util.mdelay(delay*10+5);
 }
 
-void ctrl_VCI( unsigned char ctrl, unsigned char delay  )
+void ctrl_VCI( unsigned char ctrl, unsigned char delay,unsigned int index  )
 {
     #if defined(BUILD_LK)
     printf("r69338 %s\n", __func__);
     #else
-    printk("r69338 %s\n", __func__);
+    printk("r69338 %s, index=%x\n", __func__, index);
     #endif
-    mt_set_gpio_mode(126,0);   //vci +iovcc on
-	mt_set_gpio_dir(126,1);
-	mt_set_gpio_out(126,ctrl);   //
+    mt_set_gpio_mode(index&0xff, 0);   //lcm reset control
+    mt_set_gpio_dir(index&0xff,1);
+    mt_set_gpio_out(index&0xff,ctrl);   
     lcm_util.mdelay(delay*10+5);
 }
 
-void (*ctrl_pwr[])(unsigned char ctrl, unsigned char delay)={
-    ctrl_IOVCC,ctrl_VCI,ctrl_VSP,ctrl_VSN,ctrl_RST,ctrl_BL
+void (*ctrl_pwr[])(unsigned char ctrl, unsigned char delay,unsigned int index)={
+    ctrl_IOVCC,ctrl_VCI,ctrl_VSP,ctrl_VSN,ctrl_RST,ctrl_BL_BAT,ctrl_BL_EN,ctrl_ESD,ctrl_OTP_PWR
 };
 
 unsigned int lcm_read_id(void);
@@ -538,28 +613,41 @@ void push_table(union LCM_code_table *table, unsigned int count, struct LCM_cfg*
                 }
 
                 if ( ctrl_pwr[pwr_index] ) {
-                    (*ctrl_pwr[pwr_index])(pwr_ctrl, pwr_delay);
+                    (*ctrl_pwr[pwr_index])(pwr_ctrl, pwr_delay,lcm_cfg->ctrl_index[pwr_index]);
                 }
             }
 
             break;
         case REGFLAG_VSP:
-            ctrl_VSP(l,k);        
+            ctrl_VSP(l, k, lcm_cfg->ctrl_index[CTRL_VSP]);
             break;
         case REGFLAG_VSN:
-            ctrl_VSN(l,k);           
+            ctrl_VSN(l,k,lcm_cfg->ctrl_index[CTRL_VSN]);           
             break;
         case REGFLAG_IOVCC:
-            ctrl_IOVCC(l,k);            
+            ctrl_IOVCC(l,k,lcm_cfg->ctrl_index[CTRL_IOVCC]);            
             break;
         case REGFLAG_VCI:
-            ctrl_VCI(l,k);            
+            ctrl_VCI(l,k,lcm_cfg->ctrl_index[CTRL_VCI]);            
             break;
         case REGFLAG_BL:
-            ctrl_BL(l,k);            
+            ctrl_BL(l,k,lcm_cfg->ctrl_index[CTRL_BL]);            
             break;
         case REGFLAG_RST:
-            ctrl_RST(l,k);            
+            ctrl_RST(l,k,lcm_cfg->ctrl_index[CTRL_RST]);            
+            break;
+
+        case REGFLAG_BL_EN:
+            ctrl_BL_EN(l,k,lcm_cfg->ctrl_index[CTRL_BL_EN]);            
+            break;
+        case REGFLAG_BL_BAT:
+            ctrl_BL_BAT(l,k,lcm_cfg->ctrl_index[CTRL_BL_BAT]);            
+            break;
+        case REGFLAG_OTP_PWR:
+            ctrl_OTP_PWR(l,k,lcm_cfg->ctrl_index[CTRL_OTP_PWR]);            
+            break;
+        case REGFLAG_ESD:
+            ctrl_ESD(l,k,lcm_cfg->ctrl_index[CTRL_ESD]);            
             break;
 
         case REGFLAG_DELAY :

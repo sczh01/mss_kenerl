@@ -246,10 +246,9 @@ static struct attribute_group sysfs_attr_group = {
 static void init_lcm_registers(void)
 {
     union LCM_code_table *tbl= (union LCM_code_table *)lcm_init_code_338_V1;
-    struct LCM_cfg cfg;
-    cfg.mode |= FORMAT_V1;
+    local_cfg.mode |= FORMAT_V1;
 
-	push_table( tbl, sizeof(lcm_init_code_338_V1) / sizeof(struct LCM_setting_table), &cfg, 1);
+	push_table( tbl, sizeof(lcm_init_code_338_V1) / sizeof(struct LCM_setting_table), &local_cfg, 1);
 }
 
 //********************************************************
@@ -282,25 +281,30 @@ kobj_err:
 #else
     union LCM_code_table *tbl= (union LCM_code_table *)lcm_init_code_338_V1;
     int sleep_in_num=0;
-    struct LCM_cfg cfg;
-    cfg.mode |= FORMAT_V1;
-    push_table(tbl, sizeof(lcm_init_code_338_V1) / sizeof(struct LCM_setting_table), &cfg, 1);
+
+    local_cfg.mode |= FORMAT_V1;
+    memcpy( local_cfg.ctrl_index, ctrl_fn_v0, sizeof(ctrl_fn_v0) );
+    push_table(tbl, sizeof(lcm_init_code_338_V1) / sizeof(struct LCM_setting_table), &local_cfg, 1);
 #endif
 }
+
+
 static void lcm_resume(void)
 {	
-    union LCM_code_table *tbl= (union LCM_code_table *)lcm_init_code_338_V1;
-
-    struct LCM_cfg cfg;
-    cfg.mode |= FORMAT_V1;
 
     #ifndef BUILD_LK
     //hello_init();
-    printk("r69338 enter %s\n", __func__);
     #endif 
 
+    union LCM_code_table *tbl= (union LCM_code_table *)lcm_init_code_338_V1;
 #ifndef BUILD_LK
     int ret;  
+    int cmd_num=0, sleep_in_num=0,sleep_out_num=0;
+
+    local_cfg.mode |= FORMAT_V1;
+    memcpy( local_cfg.ctrl_index, ctrl_fn_v0, sizeof(ctrl_fn_v0) );
+
+    printk("r69338 enter %s\n", __func__);
     if ( debug.sysfs_dir == NULL ) {
         debug.sysfs_dir = kobject_create_and_add(SYSFS_FOLDER, NULL);
         if(debug.sysfs_dir == NULL){  
@@ -314,37 +318,47 @@ static void lcm_resume(void)
     }else{
         printk("LCM Driver have created debug interface.\n");
     }
-#endif
-#ifndef BUILD_LK
-    int cmd_num=0, sleep_in_num=0,sleep_out_num=0;
+
     cmd_num = load_file(lcm_FileNameConfig, lcm_cmd_buf );
 
-    if ( cmd_num ) {
-        cmd_num = parser_cfg_file( lcm_cmd_buf, cmd_num, &lcm_cfg  );
+    if ( cmd_num >0 ) {
+        cmd_num = parser_cfg_file( lcm_cmd_buf, cmd_num, &g_lcm_cfg  );
         if ( g_lcm_params ) {
             printk("%s reset lcm params\n", __func__);
-            set_lcm_params(g_lcm_params, &lcm_cfg);
+            set_lcm_params(g_lcm_params, &g_lcm_cfg);
         }
-        printk("LCM code format = %d,exe_command_num=%x\n", lcm_cfg.mode, lcm_cfg.exe_num );
+
+        if(0x400 == (g_lcm_cfg.mode & 0xC00)){
+            memcpy( g_lcm_cfg.ctrl_index, ctrl_fn_v1, sizeof(ctrl_fn_v1) );
+        }else if( 0x000 == (g_lcm_cfg.mode & 0xC00)){
+            memcpy( g_lcm_cfg.ctrl_index, ctrl_fn_v0, sizeof(ctrl_fn_v0) );
+        }else{
+            memcpy( g_lcm_cfg.ctrl_index, ctrl_fn_v0, sizeof(ctrl_fn_v0) );
+        }
+
+        printk("LCM code format = %d,exe_command_num=%x\n", g_lcm_cfg.mode, g_lcm_cfg.exe_num );
+    }
+    else{
+        memcpy( g_lcm_cfg.ctrl_index, ctrl_fn_v0, sizeof(ctrl_fn_v0) );
     }
 
     cmd_num = load_file( lcm_FileName, lcm_cmd_buf ); //return is filename size
-    if ( cmd_num ) {
-        cmd_num = parser_cmd_file( lcm_cmd_buf, cmd_num, lcm_code_table, &lcm_cfg ); //return is command number
+    if ( cmd_num > 0  ) {
+        cmd_num = parser_cmd_file( lcm_cmd_buf, cmd_num, lcm_code_table, &g_lcm_cfg ); //return is command number
         printk("cmd num = %d\n", cmd_num );
     }
 
     sleep_in_num = load_file( lcm_FileName_sleep_in, lcm_cmd_buf ); //return is filename size
-    if ( sleep_in_num ) {
-        sleep_in_num = parser_cmd_file( lcm_cmd_buf, sleep_in_num, lcm_code_sleep_in_table, &lcm_cfg ); //return is command number
+    if ( sleep_in_num >0  ) {
+        sleep_in_num = parser_cmd_file( lcm_cmd_buf, sleep_in_num, lcm_code_sleep_in_table, &g_lcm_cfg ); //return is command number
         printk("slee in cmd num = %d\n", sleep_in_num );
     }else{
         printk("read sleep in file error!\n" );
     }
 
     sleep_out_num = load_file( lcm_FileName_sleep_out, lcm_cmd_buf ); //return is filename size
-    if ( sleep_out_num ) {
-        sleep_out_num = parser_cmd_file( lcm_cmd_buf, sleep_out_num, lcm_code_sleep_out_table, &lcm_cfg ); //return is command number
+    if ( sleep_out_num > 0 ) {
+        sleep_out_num = parser_cmd_file( lcm_cmd_buf, sleep_out_num, lcm_code_sleep_out_table, &g_lcm_cfg ); //return is command number
         printk("sleep out cmd num = %d\n", sleep_out_num );
     }else{
         printk("read sleep out file error!\n" );
@@ -352,25 +366,25 @@ static void lcm_resume(void)
 
     if ( -1 == cmd_num) {
         printk("enter %s: No command file, use inside only.\n", __func__);
-        push_table(tbl, sizeof(lcm_init_code_338_V1) / sizeof(struct LCM_setting_table), &cfg, 1);
+        push_table(tbl, sizeof(lcm_init_code_338_V1) / sizeof(struct LCM_setting_table), &local_cfg, 1);
     }else if ( cmd_num > 0 ) {
-        if (0x0000 == (lcm_cfg.mode & 0xf00)) { // LPWG off, follow normall sequence   
-            if (0x10 == (lcm_cfg.mode & 0xf0)) { //
-                push_table(tbl, sizeof(lcm_init_code_338_V1) / sizeof(struct LCM_setting_table), &lcm_cfg, 1);  
+        if (0x0000 == (g_lcm_cfg.mode & 0x300)) { // LPWG off, follow normall sequence   
+            if (0x10 == (g_lcm_cfg.mode & 0xf0)) { //
+                push_table(tbl, sizeof(lcm_init_code_338_V1) / sizeof(struct LCM_setting_table), &g_lcm_cfg, 1);  
                 printk("enter %s: use inside R69338 only.\n", __func__);
-            }else if(0x00==(lcm_cfg.mode&0xf0)){
-                cmd_num = cmd_num < lcm_cfg.exe_num ? cmd_num : lcm_cfg.exe_num;
-                push_table( (union LCM_code_table *)lcm_code_table, cmd_num, &lcm_cfg, 1);
+            }else if(0x00==(g_lcm_cfg.mode&0xf0)){
+                cmd_num = cmd_num < g_lcm_cfg.exe_num ? cmd_num : g_lcm_cfg.exe_num;
+                push_table( (union LCM_code_table *)lcm_code_table, cmd_num, &g_lcm_cfg, 1);
                 printk("Send command from external file, cmd = %d.\n", cmd_num );
-            }else if(0x20==(lcm_cfg.mode&0xf0)){
-                push_table((union LCM_code_table *)lcm_init_1906_V1, sizeof(lcm_init_1906_V1) / sizeof(struct LCM_setting_table), &lcm_cfg, 1);  
+            }else if(0x20==(g_lcm_cfg.mode&0xf0)){
+                push_table((union LCM_code_table *)lcm_init_1906_V1, sizeof(lcm_init_1906_V1) / sizeof(struct LCM_setting_table), &g_lcm_cfg, 1);  
                 printk("enter %s: use inside OTM1906 only.\n", __func__);
             }else{
                 printk("don't support this format mode.\n", __func__);
             }
-        }else if (0x0100 == (lcm_cfg.mode & 0xf00)){  //LPWG on, follow LPWG sequence
+        }else if (0x0100 == (g_lcm_cfg.mode & 0x300)){  //LPWG on, follow LPWG sequence
             if (sleep_out_num) {
-                push_table((union LCM_code_table *)lcm_code_sleep_out_table, sleep_out_num, &lcm_cfg, 1);
+                push_table((union LCM_code_table *)lcm_code_sleep_out_table, sleep_out_num, &g_lcm_cfg, 1);
                 printk("enter %s: use LPWG sequency.\n", __func__);
             }else{
                 printk("No code exe in LPWG mode.\n", __func__);
@@ -382,7 +396,7 @@ static void lcm_resume(void)
     }
 
 #else
-    push_table(tbl, sizeof(lcm_init_code_338_V1) / sizeof(struct LCM_setting_table), &cfg, 1);  
+    push_table(tbl, sizeof(lcm_init_code_338_V1) / sizeof(struct LCM_setting_table), &local_cfg, 1);  
 #endif
     #ifndef BUILD_LK
     printk("r69338 quit %s\n", __func__);
@@ -391,29 +405,38 @@ static void lcm_resume(void)
 
 static void lcm_suspend(void)
 {
-    union LCM_code_table *tbl= (union LCM_code_table *)lcm_sleep_in_code;
-    int sleep_in_num=0;
-
-    struct LCM_cfg cfg;
-    cfg.mode |= FORMAT_V1;
 
 #ifndef BUILD_LK
 	printk("r69338 enter %s\n", __func__);
+    union LCM_code_table *tbl= (union LCM_code_table *)lcm_sleep_in_code;
+    int sleep_in_num=0;
+
+    local_cfg.mode |= FORMAT_V1;
+    memcpy( local_cfg.ctrl_index, ctrl_fn_v0, sizeof(ctrl_fn_v0) );
+
     sleep_in_num = load_file(lcm_FileNameConfig, lcm_cmd_buf );
 
-    if ( sleep_in_num ) {
-        sleep_in_num = parser_cfg_file( lcm_cmd_buf, sleep_in_num, &lcm_cfg  );
+    if ( sleep_in_num >0  ) {
+        sleep_in_num = parser_cfg_file( lcm_cmd_buf, sleep_in_num, &g_lcm_cfg  );
         if ( g_lcm_params ) {
             printk("%s reset lcm params\n", __func__);
-            set_lcm_params(g_lcm_params, &lcm_cfg);
+            set_lcm_params(g_lcm_params, &g_lcm_cfg);
         }
-        printk("LCM code format = %d,exe_command_num=%x\n", lcm_cfg.mode, lcm_cfg.exe_num );
+        printk("LCM code format = %d,exe_command_num=%x\n", g_lcm_cfg.mode, g_lcm_cfg.exe_num );
+    }
+    else{
+        printk("read file error!\n" );
+    }
+
+    if(0x400 == (g_lcm_cfg.mode & 0xC00)){
+            memcpy( g_lcm_cfg.ctrl_index, ctrl_fn_v1, sizeof(ctrl_fn_v1) );
+    }else{
+            memcpy( g_lcm_cfg.ctrl_index, ctrl_fn_v0, sizeof(ctrl_fn_v0) );
     }
 
     sleep_in_num = load_file( lcm_FileName_sleep_in, lcm_cmd_buf ); //return is filename size
-
-    if ( sleep_in_num ) {
-        sleep_in_num = parser_cmd_file( lcm_cmd_buf, sleep_in_num, lcm_code_sleep_in_table, &lcm_cfg ); //return is command number
+    if ( sleep_in_num >0  ) {
+        sleep_in_num = parser_cmd_file( lcm_cmd_buf, sleep_in_num, lcm_code_sleep_in_table, &g_lcm_cfg ); //return is command number
         printk("slee in cmd num = %d\n", sleep_in_num );
     }
     else{
@@ -422,13 +445,17 @@ static void lcm_suspend(void)
 
 	
 
-    if ( 0x0000 == (lcm_cfg.mode & 0xf00) ) {
-        push_table(tbl, sizeof(lcm_sleep_in_code) / sizeof(struct LCM_setting_table), &cfg, 1);
-        printk("enter %s: use interanl code.\n", __func__);
+    if (  -1 == sleep_in_num ) {
+        printk("No sleep in command file, use internal sleep sequence.\n");
+        push_table(tbl, sizeof(lcm_sleep_in_code) / sizeof(struct LCM_setting_table), &local_cfg, 1);
     }
-    else if (0x0100 == (lcm_cfg.mode & 0xf00)){  //LPWG on, follow LPWG sequence
+    else if ( 0x0000 == (g_lcm_cfg.mode & 0x300) ) {
+        push_table(tbl, sizeof(lcm_sleep_in_code) / sizeof(struct LCM_setting_table), &local_cfg, 1);
+        printk("enter %s: use interanl sleep code.\n", __func__);
+    }
+    else if (0x0100 == (g_lcm_cfg.mode & 0x300)){  //LPWG on, follow LPWG sequence
         if (sleep_in_num) {
-            push_table((union LCM_code_table *)lcm_code_sleep_in_table, sleep_in_num, &lcm_cfg, 1);
+            push_table((union LCM_code_table *)lcm_code_sleep_in_table, sleep_in_num, &g_lcm_cfg, 1);
             printk("enter %s: use LPWG off sequency.\n", __func__);
         }
     }  

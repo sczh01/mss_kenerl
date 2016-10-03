@@ -16,7 +16,8 @@
 #define read_reg(cmd)					lcm_util.dsi_dcs_read_lcm_reg(cmd)
 #define read_reg_v2(cmd, buffer, buffer_size)   	lcm_util.dsi_dcs_read_lcm_reg_v2(cmd, buffer, buffer_size)   
 
-#define   LCM_DSI_CMD_MODE				0
+#define LCM_DSI_CMD_MODE				0
+
 #define FORMAT_V1 0x00
 #define FORMAT_V2 0x01
 #define FRAME_WIDTH  (1080)
@@ -33,6 +34,10 @@
 #define REGFLAG_RD                      0xF80
 #define REGFLAG_PWR                     0xFF0
 
+#define REGFLAG_BL_BAT                  0xFF4
+#define REGFLAG_BL_EN                   0xFF5
+#define REGFLAG_ESD                     0xFF6
+#define REGFLAG_OTP_PWR                 0xFF7
 #define REGFLAG_IOVCC                   0xFF8
 #define REGFLAG_VCI                     0xFF9
 #define REGFLAG_VSP                     0xFFA
@@ -40,7 +45,21 @@
 #define REGFLAG_RST                     0xFFC
 #define REGFLAG_BL                      0xFFD
 #define REGFLAG_DELAY                   0XFFE
-#define REGFLAG_END_OF_TABLE            0xFFF   // END OF REGISTERS MARKER
+#define REGFLAG_END_OF_TABLE            0xFFF   // END OF REGISTERS 
+
+#define CTRL_PWR_NUM        10
+
+#define CTRL_IOVCC          0
+#define CTRL_VCI            1
+#define CTRL_VSP            2
+#define CTRL_VSN            3
+#define CTRL_RST            4
+#define CTRL_BL_BAT         5
+#define CTRL_BL_EN          6
+#define CTRL_ESD            7
+#define CTRL_OTP_PWR        8
+#define CTRL_BL             9
+
 
 #define MAX_CMD                         500
 #define LPWG_CMD                        100
@@ -51,7 +70,7 @@
 
 static struct LCM_setting_table
 {
-    unsigned int mode;
+//    unsigned int mode;
     unsigned int cmd;
     unsigned int count;
     unsigned char para_list[80];
@@ -59,7 +78,7 @@ static struct LCM_setting_table
 
 static struct LCM_setting_table_V2
 {
-    unsigned int mode;
+//    unsigned int mode;
     unsigned int cmd;
     unsigned int count;
     unsigned int para_list[20];
@@ -79,11 +98,12 @@ static struct LCM_cfg
 	//params->dsi.HS_PRPR=5;
 	//params->dsi.HS_TRAIL=13;
 	//params->dsi.CLK_TRAIL = 10;
+    unsigned int ctrl_index[CTRL_PWR_NUM];
 };
 
 static union LCM_code_table
 {
-    unsigned int mode;
+//    unsigned int mode;
     struct LCM_setting_table tbl_v1;
     struct LCM_setting_table_V2 tbl_v2;
     unsigned char buf[sizeof(struct LCM_setting_table_V2)];
