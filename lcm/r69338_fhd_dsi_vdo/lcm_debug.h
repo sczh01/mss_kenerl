@@ -16,7 +16,7 @@
 #define read_reg(cmd)					lcm_util.dsi_dcs_read_lcm_reg(cmd)
 #define read_reg_v2(cmd, buffer, buffer_size)   	lcm_util.dsi_dcs_read_lcm_reg_v2(cmd, buffer, buffer_size)   
 
-#define LCM_DSI_CMD_MODE				0
+#define LCM_DSI_CMD_MODE				1
 
 #define FORMAT_V1 0x00
 #define FORMAT_V2 0x01
@@ -30,6 +30,8 @@
 #ifndef FALSE
     #define FALSE 0
 #endif
+
+#define REGFLAG_CFG                     0xF00
 
 #define REGFLAG_RD                      0xF80
 #define REGFLAG_PWR                     0xFF0

@@ -91,9 +91,51 @@ static int parse_input(const char *buf, union LCM_code_table *plcm_code, unsigne
             debug.lcm_code_table.tbl_v2.cmd = debug.lcm_code_table.tbl_v2.para_list[0];
             printk("ch0=%x,para_list[0]=%x.\n",ch0,debug.lcm_code_table.tbl_v2.para_list[0] );       
         }else if(0x39 == debug.buffer[0]) {// 39 2A 00 01 02 03 ==> 0x00003902,0x0201002A,0x00000003
+            debug.lcm_code_table.tbl_v2.para_list[0] = 0x3902|((index-1)<<16);
+            j=1;
+            if ( index >4 ) {
+                for (i = 1; i < index; i += 4) {
+                    ch0 = debug.buffer[i];
+                    ch1 = debug.buffer[i+1];
+                    ch2 = debug.buffer[i+2];
+                    ch3 = debug.buffer[i+3];
+                    debug.lcm_code_table.tbl_v2.para_list[j]=(ch3<<24)|(ch2<<16)|(ch1<<8)|ch0;
+                    printk("para_list[%d]=%x.\n",j,debug.lcm_code_table.tbl_v2.para_list[j] );
+                    j++;
+                }
 
+                if ((index-1)%4) {
+                    ch0 = debug.buffer[i-4];
+                    ch1 = debug.buffer[i-3];
+                    ch2 = debug.buffer[i-2];
+                    ch3 = debug.buffer[i-1];
+                    debug.lcm_code_table.tbl_v2.para_list[j]=(ch3<<24)|(ch2<<16)|(ch1<<8)|ch0;
+                    debug.lcm_code_table.tbl_v2.count = j+1;
+                    printk("para_list[%d]=%x.\n",j,debug.lcm_code_table.tbl_v2.para_list[j] );
+                }
+                else{
+                    debug.lcm_code_table.tbl_v2.count = j;
+                }
+            }
+            else {
+                ch0 = debug.buffer[1];
+                ch1 = debug.buffer[2];
+                ch2 = debug.buffer[3];
+                ch3 = debug.buffer[4];
+                debug.lcm_code_table.tbl_v2.para_list[1]=(ch3<<24)|(ch2<<16)|(ch1<<8)|ch0;
+                debug.lcm_code_table.tbl_v2.count = 2;
+                printk("para_list[%d]=%x.\n",1,debug.lcm_code_table.tbl_v2.para_list[1] );
+            }
+
+            debug.lcm_code_table.tbl_v2.cmd = debug.lcm_code_table.tbl_v2.para_list[0];
+            printk("Total count = %d.\n", debug.lcm_code_table.tbl_v2.count );
         }else if(0x23 == debug.buffer[0]) {// 29 2A 00 01 02 03 ==> 0x04B02300
-            
+            ch0 = debug.buffer[1];
+            ch1 = debug.buffer[2];
+            debug.lcm_code_table.tbl_v2.para_list[0]= 0x2300|((ch0<<16)&0xff0000)|((ch1<<24)&0xff000000);
+            debug.lcm_code_table.tbl_v2.count = 1;
+            debug.lcm_code_table.tbl_v2.cmd = debug.lcm_code_table.tbl_v2.para_list[0];
+            printk("ch0=%x,para_list[0]=%x.\n",ch0,debug.lcm_code_table.tbl_v2.para_list[0] );                
         }else if(0x29 == debug.buffer[0]) {// 29 2A 00 01 02 03 ==> 0x00002902,0x0201002A,0x00000003,                       
             debug.lcm_code_table.tbl_v2.para_list[0] = 0x2902|((index-1)<<16);
             j=1;
@@ -136,6 +178,10 @@ static int parse_input(const char *buf, union LCM_code_table *plcm_code, unsigne
         }else if( 0x14 == debug.buffer[0] ){
             //data type = 0x14 / 24, command = 0xc7, parameter = 0x00, return packet type = long, read length = 30 bytes
             //# echo 14 c7 00 1 1e > read      
+            debug.lcm_code_table.tbl_v2.cmd = debug.buffer[1];
+            debug.lcm_code_table.tbl_v2.count = debug.buffer[4];
+            debug.rlength = debug.buffer[4];
+        }else if( 0x06 == debug.buffer[0] ){
             debug.lcm_code_table.tbl_v2.cmd = debug.buffer[1];
             debug.lcm_code_table.tbl_v2.count = debug.buffer[4];
             debug.rlength = debug.buffer[4];
@@ -283,7 +329,8 @@ kobj_err:
     int sleep_in_num=0;
 
     local_cfg.mode |= FORMAT_V1;
-    memcpy( local_cfg.ctrl_index, ctrl_fn_v0, sizeof(ctrl_fn_v0) );
+    //memcpy( local_cfg.ctrl_index, ctrl_fn_v0, sizeof(ctrl_fn_v0) );
+    memcpy( local_cfg.ctrl_index, ctrl_fn_v1, sizeof(ctrl_fn_v1) );
     push_table(tbl, sizeof(lcm_init_code_338_V1) / sizeof(struct LCM_setting_table), &local_cfg, 1);
 #endif
 }
@@ -330,6 +377,7 @@ static void lcm_resume(void)
 
         if(0x400 == (g_lcm_cfg.mode & 0xC00)){
             memcpy( g_lcm_cfg.ctrl_index, ctrl_fn_v1, sizeof(ctrl_fn_v1) );
+            memcpy( local_cfg.ctrl_index, ctrl_fn_v1, sizeof(ctrl_fn_v1) );
         }else if( 0x000 == (g_lcm_cfg.mode & 0xC00)){
             memcpy( g_lcm_cfg.ctrl_index, ctrl_fn_v0, sizeof(ctrl_fn_v0) );
         }else{
@@ -430,6 +478,7 @@ static void lcm_suspend(void)
 
     if(0x400 == (g_lcm_cfg.mode & 0xC00)){
             memcpy( g_lcm_cfg.ctrl_index, ctrl_fn_v1, sizeof(ctrl_fn_v1) );
+            memcpy( local_cfg.ctrl_index, ctrl_fn_v1, sizeof(ctrl_fn_v1) );
     }else{
             memcpy( g_lcm_cfg.ctrl_index, ctrl_fn_v0, sizeof(ctrl_fn_v0) );
     }

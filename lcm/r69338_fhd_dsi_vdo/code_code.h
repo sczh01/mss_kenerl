@@ -569,6 +569,8 @@ void push_table(union LCM_code_table *table, unsigned int count, struct LCM_cfg*
 
         switch (cmd)
         {
+        case REGFLAG_CFG:
+            break;
         case REGFLAG_RD:
             if( FORMAT_V2 == (lcm_cfg->mode&0x0f)){
                 reg_read(table[i].tbl_v2.para_list[1], table[i].tbl_v2.para_list+2);
