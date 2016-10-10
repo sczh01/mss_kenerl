@@ -88,7 +88,12 @@ static struct LCM_setting_table_V2
 
 static struct LCM_cfg
 {
-    unsigned int mode;
+    //mode description:0x0000mnlk,
+    //  m is for board, 0x00 is old, 0x01 is new board
+    // n is for LPWG, 0x00 is LPWG off, 0x01 is LPWG on
+    // l is different panel, 0x00 is from cmd file, 0x01 is for r69338, 0x02 is for 1906A
+    // k is different command format, 0x00 is V1, 0x01 is V2.
+    unsigned int mode; 
     unsigned int exe_num;
     unsigned int freq_pll;// 0x0000mnll
     unsigned int hfp_vfp;
@@ -101,6 +106,16 @@ static struct LCM_cfg
 	//params->dsi.HS_TRAIL=13;
 	//params->dsi.CLK_TRAIL = 10;
     unsigned int ctrl_index[CTRL_PWR_NUM];
+};
+
+static struct HOST_cfg  // host input: 0xff 0x01 0x01 0x01 0x00 0x00
+{
+    unsigned int input_mode:4;
+    unsigned int input_board_ver:4;
+    unsigned int input_lpwg:4;
+    unsigned int input_panel_vendor:4;
+    unsigned int input_cmd_format:4;
+    unsigned int input_rvd:12;
 };
 
 static union LCM_code_table

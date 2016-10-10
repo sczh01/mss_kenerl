@@ -21,6 +21,7 @@ union LCM_code_table    lcm_code_sleep_out_table[LPWG_CMD];
 
 struct LCM_cfg          g_lcm_cfg;
 unsigned char           lcm_cmd_buf[COMMAND_BUF_SIZE];
+struct HOST_cfg         g_host_cfg={0};
 
 char *lcm_FileName = "/sdcard/cmd.txt";
 char *lcm_FileNameRD = "/sdcard/cmdrd.txt";

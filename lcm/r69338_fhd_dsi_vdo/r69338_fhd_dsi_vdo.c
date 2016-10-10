@@ -205,10 +205,37 @@ static int do_read(void)
 
 static int do_write(void)
 {
+    unsigned int temp;
 	printk("r69338 enter %s.\n", __func__);
     printk("cmd=%x,count=%x.\n",debug.lcm_code_table.tbl_v2.para_list[0],debug.lcm_code_table.tbl_v2.count );
+    //debug.buffer
+    if (0xff == debug.buffer[0]) {
+        g_host_cfg.input_mode = debug.buffer[1]; //0x00 is default, 0x01 is from host control
+        if ( g_host_cfg.input_mode ) {
+            g_host_cfg.input_board_ver= debug.buffer[2];
+            g_host_cfg.input_lpwg= debug.buffer[3];
+            g_host_cfg.input_panel_vendor= debug.buffer[4];
+            g_host_cfg.input_cmd_format= debug.buffer[5];
 
-	dsi_set_cmdq( debug.lcm_code_table.tbl_v2.para_list, debug.lcm_code_table.tbl_v2.count, 1);
+            if ( g_host_cfg.input_board_ver ) {
+                g_lcm_cfg.mode |= 0x4000; 
+            }else
+                g_lcm_cfg.mode &= 0xBfff;
+
+            
+            if ( g_host_cfg.input_lpwg ) {
+                g_lcm_cfg.mode |= 0x0100; 
+            }else
+                g_lcm_cfg.mode &= 0xFEff;
+
+            temp = debug.buffer[4]<<4+debug.buffer[5];
+            temp |=0xff00;
+            g_lcm_cfg.mode &=temp; 
+
+            printk("input mode %x,temp=%x \n", g_lcm_cfg.mode, temp );
+        }
+    } else
+    dsi_set_cmdq(debug.lcm_code_table.tbl_v2.para_list, debug.lcm_code_table.tbl_v2.count, 1);
 
 	return 1;
 }
@@ -369,10 +396,13 @@ static void lcm_resume(void)
     cmd_num = load_file(lcm_FileNameConfig, lcm_cmd_buf );
 
     if ( cmd_num >0 ) {
-        cmd_num = parser_cfg_file( lcm_cmd_buf, cmd_num, &g_lcm_cfg  );
-        if ( g_lcm_params ) {
-            printk("%s reset lcm params\n", __func__);
-            set_lcm_params(g_lcm_params, &g_lcm_cfg);
+
+        if ( 0 == g_host_cfg.input_mode ){
+            cmd_num = parser_cfg_file( lcm_cmd_buf, cmd_num, &g_lcm_cfg  );
+            if ( g_lcm_params ) {
+                printk("%s reset lcm params\n", __func__);
+                set_lcm_params(g_lcm_params, &g_lcm_cfg);
+            }
         }
 
         if(0x400 == (g_lcm_cfg.mode & 0xC00)){
@@ -465,12 +495,14 @@ static void lcm_suspend(void)
     sleep_in_num = load_file(lcm_FileNameConfig, lcm_cmd_buf );
 
     if ( sleep_in_num >0  ) {
-        sleep_in_num = parser_cfg_file( lcm_cmd_buf, sleep_in_num, &g_lcm_cfg  );
-        if ( g_lcm_params ) {
-            printk("%s reset lcm params\n", __func__);
-            set_lcm_params(g_lcm_params, &g_lcm_cfg);
+        if ( 0x00==g_host_cfg.input_mode ){
+            sleep_in_num = parser_cfg_file( lcm_cmd_buf, sleep_in_num, &g_lcm_cfg  );
+            if ( g_lcm_params ) {
+                printk("%s reset lcm params\n", __func__);
+                set_lcm_params(g_lcm_params, &g_lcm_cfg);
+            }
         }
-        printk("LCM code format = %d,exe_command_num=%x\n", g_lcm_cfg.mode, g_lcm_cfg.exe_num );
+        printk("LCM code format = %d,exe_command_num=%x\n g_host_cfg.input_mode\n", g_lcm_cfg.mode, g_lcm_cfg.exe_num,g_host_cfg.input_mode );
     }
     else{
         printk("read file error!\n" );
