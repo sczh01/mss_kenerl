@@ -111,11 +111,11 @@ static struct LCM_cfg
 static struct HOST_cfg  // host input: 0xff 0x01 0x01 0x01 0x00 0x00
 {
     unsigned int input_mode:4;
-    unsigned int input_board_ver:4;
-    unsigned int input_lpwg:4;
+    unsigned int input_board_ver:2;
+    unsigned int input_lpwg:2;
     unsigned int input_panel_vendor:4;
     unsigned int input_cmd_format:4;
-    unsigned int input_rvd:12;
+    unsigned int input_rvd:16;
 };
 
 static union LCM_code_table

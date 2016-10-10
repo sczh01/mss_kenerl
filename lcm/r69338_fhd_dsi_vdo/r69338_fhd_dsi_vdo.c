@@ -218,21 +218,21 @@ static int do_write(void)
             g_host_cfg.input_cmd_format= debug.buffer[5];
 
             if ( g_host_cfg.input_board_ver ) {
-                g_lcm_cfg.mode |= 0x4000; 
+                g_lcm_cfg.mode |= 0x0400; 
             }else
-                g_lcm_cfg.mode &= 0xBfff;
+                g_lcm_cfg.mode &= 0xBff;
 
             
             if ( g_host_cfg.input_lpwg ) {
                 g_lcm_cfg.mode |= 0x0100; 
             }else
-                g_lcm_cfg.mode &= 0xFEff;
+                g_lcm_cfg.mode &= 0x0Eff;
 
             temp = debug.buffer[4]<<4+debug.buffer[5];
-            temp |=0xff00;
+            temp |=0x0f00;
             g_lcm_cfg.mode &=temp; 
 
-            printk("input mode %x,temp=%x \n", g_lcm_cfg.mode, temp );
+            printk("input mode=%x,temp=%x.\n", g_lcm_cfg.mode, temp );
         }
     } else
     dsi_set_cmdq(debug.lcm_code_table.tbl_v2.para_list, debug.lcm_code_table.tbl_v2.count, 1);
@@ -502,7 +502,7 @@ static void lcm_suspend(void)
                 set_lcm_params(g_lcm_params, &g_lcm_cfg);
             }
         }
-        printk("LCM code format = %d,exe_command_num=%x\n g_host_cfg.input_mode\n", g_lcm_cfg.mode, g_lcm_cfg.exe_num,g_host_cfg.input_mode );
+        printk("LCM code format = %d,exe_command_num=%x\n g_host_cfg.input_mode=%x\n", g_lcm_cfg.mode, g_lcm_cfg.exe_num,g_host_cfg.input_mode );
     }
     else{
         printk("read file error!\n" );
