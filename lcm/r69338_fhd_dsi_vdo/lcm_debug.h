@@ -36,6 +36,7 @@
 #define REGFLAG_RD                      0xF80
 #define REGFLAG_PWR                     0xFF0
 
+#define REGFLAG_GPIO                    0xFF3
 #define REGFLAG_BL_BAT                  0xFF4
 #define REGFLAG_BL_EN                   0xFF5
 #define REGFLAG_ESD                     0xFF6
@@ -49,7 +50,7 @@
 #define REGFLAG_DELAY                   0XFFE
 #define REGFLAG_END_OF_TABLE            0xFFF   // END OF REGISTERS 
 
-#define CTRL_PWR_NUM        10
+#define CTRL_PWR_NUM        11
 
 #define CTRL_IOVCC          0
 #define CTRL_VCI            1
@@ -58,10 +59,10 @@
 #define CTRL_RST            4
 #define CTRL_BL_BAT         5
 #define CTRL_BL_EN          6
-#define CTRL_ESD            7
-#define CTRL_OTP_PWR        8
+#define CTRL_ESD            8
+#define CTRL_OTP_PWR        7
 #define CTRL_BL             9
-
+#define CTRL_GPIO           10
 
 #define MAX_CMD                         500
 #define LPWG_CMD                        100
@@ -69,6 +70,12 @@
 
 #define SYSFS_FOLDER "dsi_access"
 #define BUFFER_LENGTH 258
+
+#if (LCM_DSI_CMD_MODE)
+#define SOFT_VER "Command mode:2016-10.12.AM\n"
+#else
+#define SOFT_VER "Video mode:2016-10.12.AM\n"
+#endif
 
 static struct LCM_setting_table
 {
@@ -116,6 +123,7 @@ static struct HOST_cfg  // host input: 0xff 0x01 0x01 0x01 0x00 0x00
     unsigned int input_panel_vendor:4;
     unsigned int input_cmd_format:4;
     unsigned int input_rvd:16;
+    char test_software_version[128];
 };
 
 static union LCM_code_table

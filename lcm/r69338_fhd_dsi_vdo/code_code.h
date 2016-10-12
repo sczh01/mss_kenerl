@@ -21,7 +21,7 @@ union LCM_code_table    lcm_code_sleep_out_table[LPWG_CMD];
 
 struct LCM_cfg          g_lcm_cfg;
 unsigned char           lcm_cmd_buf[COMMAND_BUF_SIZE];
-struct HOST_cfg         g_host_cfg={0};
+struct HOST_cfg         g_host_cfg={0,.test_software_version=SOFT_VER};
 
 char *lcm_FileName = "/sdcard/cmd.txt";
 char *lcm_FileNameRD = "/sdcard/cmdrd.txt";
@@ -289,12 +289,14 @@ int load_file( char *FileName, unsigned char* buf )
 //{0xaf,0x01,0x05};     //BL VBAT    ????????? ????
 //{0x81,0x01,0x05};     //BL en       ????????  ??????
 //{0xAD,0x01,0x05};     //OTP 173 
+//                       GPIO 127out/target/product/mss_lk.log_err
 
+static unsigned int ctrl_fn_v0[CTRL_PWR_NUM]={0x7E,0x7E,0x7D,0x75,0x83,0x81,0xAE,0,0,0xAE81,0x00 };
+static unsigned int ctrl_fn_v1[CTRL_PWR_NUM]={0x4c,0x7e,0xAE,0xB1,0x83,0x81,0xAF,0xAD,0xB0,0xAF81,0x00 };
 
-static unsigned int ctrl_fn_v0[CTRL_PWR_NUM]={0x7E,0x7E,0x7D,0x75,0x83,0x81,0xAE,0,0,0xAE81 };
-static unsigned int ctrl_fn_v1[CTRL_PWR_NUM]={0x4c,0x7e,0xAE,0xB1,0x83,0x81,0xAF,0xAD,0xB0,0xAF81 };
+//ctrl_IOVCC,ctrl_VCI,ctrl_VSP,ctrl_VSN,ctrl_RST,ctrl_BL_BAT,ctrl_BL_EN,ctrl_OTP_PWR,ctrl_ESD,ctrl_GPIO
 
-//ctrl_IOVCC,ctrl_VCI,ctrl_VSP,ctrl_VSN,ctrl_RST,ctrl_BL
+//GPIO ctrl is differernt other. ctrl is index, delay is control+delay, index is no meaning
 void ctrl_GPIO( unsigned char ctrl, unsigned char delay, unsigned int index )
 {
     #if defined(BUILD_LK)
@@ -302,10 +304,10 @@ void ctrl_GPIO( unsigned char ctrl, unsigned char delay, unsigned int index )
     #else
     printk("r69338 %s, index=%x\n", __func__, index);
     #endif
-    mt_set_gpio_mode(index&0xff, 0);   
-    mt_set_gpio_dir(index&0xff,1);
-    mt_set_gpio_out(index&0xff,ctrl);   
-    lcm_util.mdelay(delay*10+5);    
+    mt_set_gpio_mode(ctrl&0xff, 0);   
+    mt_set_gpio_dir(ctrl&0xff,1);
+    mt_set_gpio_out(ctrl&0xff,delay>>3);   
+    lcm_util.mdelay((delay&0x7)*20+5);    
 }
 void ctrl_RST( unsigned char ctrl, unsigned char delay, unsigned int index )
 {
@@ -314,10 +316,10 @@ void ctrl_RST( unsigned char ctrl, unsigned char delay, unsigned int index )
     #else
     printk("r69338 %s, index=%x\n", __func__, index);
     #endif
-    mt_set_gpio_mode(index&0xff, 0);   
+    mt_set_gpio_mode(index&0xff,0);
     mt_set_gpio_dir(index&0xff,1);
-    mt_set_gpio_out(index&0xff,ctrl);   
-    lcm_util.mdelay(delay*10+5);    
+    mt_set_gpio_out(index&0xff,ctrl);
+    lcm_util.mdelay(delay*10+5);
 }
 void ctrl_ESD( unsigned char ctrl, unsigned char delay, unsigned int index )
 {
@@ -412,7 +414,7 @@ void ctrl_BL( unsigned char ctrl, unsigned char delay,unsigned int index  )
     lcm_util.mdelay(delay*10+5);
 }
 
-
+//GPIO ctrl is differernt other. L is index, k is control+delay
 
 void ctrl_IOVCC( unsigned char ctrl, unsigned char delay,unsigned int index  )
 {
@@ -441,7 +443,7 @@ void ctrl_VCI( unsigned char ctrl, unsigned char delay,unsigned int index  )
 }
 
 void (*ctrl_pwr[])(unsigned char ctrl, unsigned char delay,unsigned int index)={
-    ctrl_IOVCC,ctrl_VCI,ctrl_VSP,ctrl_VSN,ctrl_RST,ctrl_BL_BAT,ctrl_BL_EN,ctrl_ESD,ctrl_OTP_PWR
+    ctrl_IOVCC,ctrl_VCI,ctrl_VSP,ctrl_VSN,ctrl_RST,ctrl_BL_BAT,ctrl_BL_EN,ctrl_OTP_PWR,ctrl_ESD,ctrl_BL,ctrl_GPIO
 };
 
 unsigned int lcm_read_id(void);
@@ -567,6 +569,9 @@ void push_table(union LCM_code_table *table, unsigned int count, struct LCM_cfg*
             #endif
         }
 
+        if ( cmd == REGFLAG_END_OF_TABLE ) {
+            break;
+        }
 
         switch (cmd)
         {
@@ -621,6 +626,9 @@ void push_table(union LCM_code_table *table, unsigned int count, struct LCM_cfg*
             }
 
             break;
+        case REGFLAG_GPIO:
+            ctrl_GPIO(l, k, lcm_cfg->ctrl_index[CTRL_GPIO]); //GPIO ctrl is differernt other. L is index, k is control+delay
+            break;
         case REGFLAG_VSP:
             ctrl_VSP(l, k, lcm_cfg->ctrl_index[CTRL_VSP]);
             break;
@@ -654,10 +662,7 @@ void push_table(union LCM_code_table *table, unsigned int count, struct LCM_cfg*
             break;
 
         case REGFLAG_DELAY :
-            lcm_util.mdelay(l);
-            break;
-
-        case REGFLAG_END_OF_TABLE :
+            lcm_util.mdelay(k);
             break;
 
         default:

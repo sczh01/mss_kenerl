@@ -198,8 +198,23 @@ static int parse_input(const char *buf, union LCM_code_table *plcm_code, unsigne
 
 static int do_read(void)
 {
+    char sstr[64];
 	printk("r69338 enter %s.\n", __func__);
-    debug.rlength=host_read(debug.lcm_code_table.tbl_v2.cmd, debug.lcm_code_table.tbl_v2.count, 1, debug.read_buffer );
+    if (0xff == debug.buffer[0]) {
+        printk("Display software information: version, configmode, and so on\n" );
+        if ( 0x00 == debug.buffer[1]) { // software version
+            memcpy(debug.read_buffer, &g_host_cfg.test_software_version[0],strlen(g_host_cfg.test_software_version));
+            debug.rlength = strlen(debug.read_buffer); 
+        }
+        else if (0x01 ==debug.buffer[1]) { //show the config mode
+            sprintf(sstr,"Config mode=%4x\n", g_lcm_cfg.mode );
+            strcpy(debug.read_buffer,sstr);
+            debug.rlength = strlen(debug.read_buffer);
+        }
+        else{ //add more display information
+        }
+    }else
+        debug.rlength=host_read(debug.lcm_code_table.tbl_v2.cmd, debug.lcm_code_table.tbl_v2.count, 1, debug.read_buffer );
     return debug.rlength;
 }
 
@@ -228,9 +243,10 @@ static int do_write(void)
             }else
                 g_lcm_cfg.mode &= 0x0Eff;
 
-            temp = debug.buffer[4]<<4+debug.buffer[5];
-            temp |=0x0f00;
-            g_lcm_cfg.mode &=temp; 
+            temp = (debug.buffer[4]<<4)+debug.buffer[5];
+            
+            g_lcm_cfg.mode &=0xf00; 
+            g_lcm_cfg.mode |=temp; 
 
             printk("input mode=%x,temp=%x.\n", g_lcm_cfg.mode, temp );
         }
@@ -247,17 +263,24 @@ static ssize_t sysfs_show_read(struct device *dev,
 	unsigned char cnt;
 	unsigned char count=0;
 	printk("r69338 enter %s, buf=%s\n", __func__, buf);
-	for (ii = 0; ii < debug.rlength - 1; ii++) {
-		cnt = snprintf(buf, PAGE_SIZE - count, "%02x ",
-				debug.read_buffer[ii]);
-		buf += cnt;
-		count += cnt;
-	}
+    if (0xff == debug.buffer[0]){ //private command, return version info, mode and so on
+        memcpy(buf,&debug.read_buffer[0],debug.rlength);
+        buf[debug.rlength]='\n';
+        buf[debug.rlength+1]=0;
+        count = debug.rlength+1;
+    }else{
+        for (ii = 0; ii < debug.rlength - 1; ii++) {
+            cnt = snprintf(buf, PAGE_SIZE - count, "%02x ",
+                    debug.read_buffer[ii]);
+            buf += cnt;
+            count += cnt;
+        }
 
-	cnt = snprintf(buf, PAGE_SIZE - count, "%02x\n",
-			debug.read_buffer[ii]);
-	buf += cnt;
-	count += cnt;
+        cnt = snprintf(buf, PAGE_SIZE - count, "%02x\n",
+                debug.read_buffer[ii]);
+        buf += cnt;
+        count += cnt;
+    }
 
 	return count;
 }
@@ -275,7 +298,7 @@ static ssize_t sysfs_store_read(struct device *dev,
     }
 
 	debug.length = 0;
-    memset( debug.buffer, 0, BUFFER_LENGTH );
+    //memset( debug.buffer, 0, BUFFER_LENGTH );
 
 	return count;
 }
@@ -295,7 +318,6 @@ static ssize_t sysfs_store_write(struct device *dev,
 
 	debug.length = 0;
     memset( debug.buffer, 0, BUFFER_LENGTH );
-
 	if (retval < 0)
 		return retval;
 	else
@@ -330,6 +352,7 @@ void lcm_init(void)
 #ifndef BUILD_LK
     int ret;  
     printk("R69338 enter lcm_init.\n");
+
 	debug.sysfs_dir = kobject_create_and_add(SYSFS_FOLDER, NULL);
        
 
